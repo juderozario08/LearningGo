@@ -39,6 +39,15 @@ func main() {
 	fmt.Println()
 	fmt.Println("Struct")
 	structs()
+	fmt.Println()
+	fmt.Println("Enum")
+	EnumTester()
+	fmt.Println()
+	fmt.Println("Struct Embedding")
+	struct_embedding()
+	fmt.Println()
+	fmt.Println("Generics")
+	GenericTester()
 }
 
 func arrays() {
@@ -184,6 +193,8 @@ type Student struct {
 }
 
 // A simple way to create methods for a struct. Similar to impl from rust
+// Calling a function like this is also known as the
+// fmt.Stringer interface similar to the ToString method by default in Java
 func (w Worker) String() string {
 	return fmt.Sprintf("%s is %d years old", w.name, w.age)
 }
@@ -201,6 +212,10 @@ func (s *Student) StringP() string {
 	return fmt.Sprintf("%s is %d years old", s.name, s.age)
 }
 
+/*
+	Since the String() method is in both the Worker struct and Student struct, the interface can just
+	mimic calling both these functions automatically without having to call for each struct explicitly
+*/
 // Go automatically dereferences pointers when calling methods
 func structs() {
 	p := Worker{age: 20, name: "John"}
@@ -211,4 +226,137 @@ func structs() {
 		fmt.Println(p.String())
 	}
 	pr(p)
+}
+
+// Create a type called ServerState
+type ServerState int
+
+// This is the ENUM Defined for all the possible server states
+// Since there is no definite keywork for enums, we just use the const
+// and assign a number to the ENUM using the IOTA
+const (
+	StateIdle = iota
+	StateConnected
+	StateError
+	StateRetrying
+)
+
+// This is to Map each state to a certain string to make the readability easier while debugging
+var stateName = map[ServerState]string{
+	StateIdle:      "idle",
+	StateConnected: "connected",
+	StateError:     "error",
+	StateRetrying:  "error",
+}
+
+// This transition function simply switches the state based on what state I am in currently
+func transition(s ServerState) ServerState {
+	switch s {
+	case StateIdle:
+		return StateConnected
+	case StateConnected, StateRetrying:
+		return StateIdle
+	case StateError:
+		return StateError
+	}
+	return StateConnected
+}
+
+func EnumTester() {
+	ns := transition(StateIdle)
+	fmt.Println(stateName[ns])
+	ns2 := transition(ns)
+	fmt.Println(stateName[ns2])
+}
+
+// This is all a part of Struct Embedding
+type base struct {
+	num int
+}
+
+func (b base) describe() string {
+	return fmt.Sprintf("base with num=%v", b.num)
+}
+
+type container struct {
+	base
+	str string
+}
+
+func struct_embedding() {
+	co := container{
+		base: base{
+			num: 1,
+		},
+		str: "Some Name",
+	}
+	fmt.Printf("co={num: %v , str: %v}\n", co.num, co.str)
+	fmt.Println("also num: ", co.num)
+	fmt.Println("describe: ", co.describe())
+
+	type describer interface {
+		describe() string
+	}
+
+	var d describer = co
+	fmt.Println("describer: ", d.describe())
+
+	var do describer = base{num: 10}
+	fmt.Println("describer: ", do.describe())
+}
+
+// Generics
+// K has the constraint of being comparable so == and != are valid comparisons for the key and V can be any type
+func MapKeys[K comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func MapValues[K comparable, V any](m map[K]V) []V {
+	values := make([]V, 0, len(m))
+	for _, v := range m {
+		values = append(values, v)
+	}
+	return values
+}
+
+type node[T any] struct {
+	next *node[T]
+	val  T
+}
+
+type List[T any] struct {
+	head, tail *node[T]
+}
+
+func (lst *List[T]) Push(v T) {
+	if lst.tail == nil {
+		lst.head = &node[T]{val: v}
+		lst.tail = lst.head
+	} else {
+		lst.tail.next = &node[T]{val: v}
+		lst.tail = lst.tail.next
+	}
+}
+
+func (lst *List[T]) GetAll() []T {
+	var elems []T
+	for e := lst.head; e != nil; e = e.next {
+		elems = append(elems, e.val)
+	}
+	return elems
+}
+
+func GenericTester() {
+	var m = map[int]string{1: "2", 3: "4", 5: "6"}
+	fmt.Println("Keys: ", MapKeys(m))
+	fmt.Println("Values: ", MapValues(m))
+	lst := List[int]{}
+	lst.Push(10)
+	lst.Push(11)
+	lst.Push(12)
+	fmt.Println(lst.GetAll())
 }
